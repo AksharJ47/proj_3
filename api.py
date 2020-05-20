@@ -30,7 +30,7 @@ app = Flask(__name__)
 # Load our model into memory.
 # Please update this path to reflect your own trained model.
 static_model = load_model(
-    path_to_model='assets/trained-models/sendy_simple_lm_regression.pkl')
+    path_to_model='C:/Users/Sibonelo.Malakiya/Desktop/API Testing/regression-predict-api-template/assets/trained-models/sendy_simple_lm_regression.pkl')
 
 print ('-'*40)
 print ('Model succesfully loaded')
@@ -57,4 +57,4 @@ def model_prediction():
 # This will allow Flask to automatically restart itself everytime you
 # update your API code.
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=5000, debug=True)
