@@ -26,6 +26,40 @@ import numpy as np
 import pandas as pd
 import pickle
 import json
+from dateutil.parser import parse
+
+
+# Time manipulation functions
+
+def time_parse_hr(time) :
+    dt = parse(time)
+    hour = dt.hour    
+    return hour
+    
+def time_parse_min(time) :
+    dt = parse(time)
+    minute = dt.minute   
+    return minute
+
+def time_parse_sec(time) :
+    dt = parse(time)
+    second = dt.second    
+    return second  
+
+# Re-ordering columns ( Hard code )
+
+columns_to_keep = ['Distance (KM)','Destination Lat','Confirmation - Second',
+ 'Pickup - Minute','No_Of_Orders','Pickup Long','Placement - Second',
+'Arrival at Pickup - Minute','Pickup Lat','Arrival at Pickup - Second',
+ 'No_of_Ratings','Placement - Minute','Pickup - Second','Average_Rating',
+ 'Confirmation - Minute','Destination Long','Age','Confirmation - Day of Month',
+ 'Pickup - Hour','Confirmation - Hour','Placement - Day of Month',
+ 'Arrival at Pickup - Day of Month','Temperature','Pickup - Day of Month',
+ 'Placement - Hour','Confirmation - Weekday (Mo = 1)','Placement - Weekday (Mo = 1)',
+ 'Arrival at Pickup - Weekday (Mo = 1)','Pickup - Weekday (Mo = 1)',
+ 'Arrival at Pickup - Hour']
+    
+# ---------------------------------------------------------------------------#
 
 def _preprocess_data(data):
     """Private helper function to preprocess data for model prediction.
@@ -59,13 +93,86 @@ def _preprocess_data(data):
     # ---------------------------------------------------------------
 
     # ----------- Replace this code with your own preprocessing steps --------
-    predict_vector = feature_vector_df[['Pickup Lat','Pickup Long',
-                                        'Destination Lat','Destination Long']]
+    
+    # Drop useless columns
+    
+    predict_vector = feature_vector_df.drop([
+                    'Vehicle Type','Precipitation in millimeters' ,
+                    'User Id','Order No','Rider Id' ,'Platform Type',
+                    'Personal or Business',
+                     ],axis = 1)
+    
+    # Populate temperature nulls
+    
+    # predict_vector = predict_vector.fillna(predict_vector.mean())
+      
+    
+    # Time manipulation application
+    
+    predict_vector['Placement - Hour'] = predict_vector[
+                                      'Placement - Time'
+                                      ].apply(time_parse_hr)
+    
+    predict_vector['Placement - Minute'] = predict_vector[
+                                     'Placement - Time'
+                                     ].apply(time_parse_min)
+    
+    predict_vector['Placement - Second'] = predict_vector[
+                                     'Placement - Time'
+                                     ].apply(time_parse_sec)
+                                                                
+    predict_vector['Confirmation - Hour'] = predict_vector[
+                                   'Confirmation - Time'
+                                   ].apply(time_parse_hr)
+    
+    predict_vector['Confirmation - Minute'] = predict_vector[
+                                   'Confirmation - Time'
+                                   ].apply(time_parse_min)
+    
+    predict_vector['Confirmation - Second'] = predict_vector[
+                                         'Confirmation - Time'
+                                     ].apply(time_parse_sec)
+    
+    predict_vector['Arrival at Pickup - Hour'] = predict_vector[
+                                        'Arrival at Pickup - Time'
+                                            ].apply(time_parse_hr)
+    
+    predict_vector['Arrival at Pickup - Minute'] = predict_vector[
+                                        'Arrival at Pickup - Time'
+                                              ].apply(time_parse_min)
+    
+    predict_vector['Arrival at Pickup - Second'] = predict_vector[
+                                        'Arrival at Pickup - Time'
+                                              ].apply(time_parse_sec)
+    
+    predict_vector['Pickup - Hour'] = predict_vector[
+                                     'Pickup - Time'
+                                      ].apply(time_parse_hr)
+    
+    predict_vector['Pickup - Minute'] = predict_vector[
+                                     'Pickup - Time'
+                                     ].apply(time_parse_min)
+    
+    predict_vector['Pickup - Second'] = predict_vector[
+                                       'Pickup - Time'
+                                       ].apply(time_parse_sec)
+
+
+    # Drop original times
+    
+    predict_vector = predict_vector.drop(['Placement - Time' ,
+                                          'Confirmation - Time',
+                                          'Arrival at Pickup - Time' ,
+                                          'Pickup - Time'],
+                                          axis = 1)
+    
+    predict_vector = predict_vector[columns_to_keep] # Define the order
+       
     # ------------------------------------------------------------------------
 
     return predict_vector
 
-def load_model(path_to_model:str):
+def load_model(path_to_model : str):
     """Adapter function to load our pretrained model into memory.
 
     Parameters
@@ -82,6 +189,7 @@ def load_model(path_to_model:str):
 
     """
     return pickle.load(open(path_to_model, 'rb'))
+
 
 def make_prediction(data, model):
     """Prepare request data for model prediciton.
