@@ -1,20 +1,15 @@
 """
-
     Simple Script to test the API once deployed
-
     Author: Explore Data Science Academy.
-
     Note:
     ---------------------------------------------------------------------
     Plase follow the instructions provided within the README.md file
     located at the root of this repo for guidance on how to use this
     script correctly.
     ----------------------------------------------------------------------
-
     Description: This file contains code used to formulate a POST request
     which can be used to develop/debug the Model API once it has been
     deployed.
-
 """
 
 # Import dependencies
@@ -27,17 +22,8 @@ import numpy as np
 # from the Zindi challenge.
 test = pd.read_csv('data/Test_Zindi.csv')
 riders = pd.read_csv('data/Riders_Zindi.csv')
+test = test.merge(riders, how='left', on='Rider Id')
 
-# Riders pre-filter
-
-#riders_new = riders[riders['No_Of_Orders'] > 350]
-riders_new = riders[riders['Average_Rating'] > 12.2]
-
-
-test = pd.merge(test, riders, how='left', left_on='Rider Id',
-                right_on='Rider Id', left_index=True)
-
-test = test.fillna(test.mean())                    # Populate all nulls
 # Convert our DataFrame to a JSON string.
 # This step is necessary in order to transmit our data via HTTP/S
 feature_vector_json = test.iloc[0].to_json()
@@ -46,11 +32,10 @@ feature_vector_json = test.iloc[0].to_json()
 # NOTE: When testing your instance of the API on a remote machine
 # replace the URL below with its public IP:
 
-
-#url = 'http://{public-ip-address-of-remote-machine}:5000/api_v0.1'
+# url = 'http://{public-ip-address-of-remote-machine}:5000/api_v0.1'
 url = 'http://34.242.117.238:5000/api_v0.1'
 
-#Perform the POST request.
+# Perform the POST request.
 print(f"Sending POST request to web server API at: {url}")
 print("")
 print(f"Querying API with the following data: \n {test.iloc[1].to_list()}")
