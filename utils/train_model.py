@@ -41,6 +41,7 @@ train = pd.read_csv('data/Train_Zindi.csv')
 riders = pd.read_csv('data/Riders_Zindi.csv')
 test_df = pd.read_csv('data/Test_Zindi.csv')
 test = test_df.copy()
+train_df = train.copy()
 # Drop data not available in test, Pickup Time + label = Arrival times
 
 train = train.drop(['Arrival at Destination - Day of Month',
@@ -85,176 +86,145 @@ train = train.rename(columns=feature_names)
 
 # Function to convert time to seconds after midnight 
 
-def time_conv(input_df):
-    input_df_1 = input_df.copy()
-    def timetosecs(x):
-        if len(x) == 10:
-            if x[-2:] == 'AM':
-                x = (float(x[0])*3600) + (float(x[2:4])*60) + float(x[5:7])
-            else:
-                x = (float(x[0])*43200) + (float(x[2:4])*60) + float(x[5:7])
+# Assume 0mm of rain where precipitation is missing
+# Impute missing temperature with average
+def Impute(input_df):
+    '''Function fills missing values on the Temperature and
+       Precipitation columns, all missing temperatures are
+       imputed with the average temperature while all
+       Precipitation columns are filled with 0mm of rain
+    '''
+    df = input_df.copy()
+    cols_to_impute = ['Temperature',
+                      'Precipitation(mm)']
+    for col in cols_to_impute:
+        if col == 'Temperature':
+            a = round(df[col].mean(),1)
+        if col == 'Precipitation(mm)':
+            a = round(df[col].mean(),1)
+        df[col] = df[col].fillna(a) 
+    return (df)
+
+train = Impute(train)
+
+# Time change function
+
+def time_change(input_df):
+    '''Converts time format %H:%M:%S to seconds past midnight(00:00) of
+       the same day rounded to the nearest second.
+       ------------------------------
+       12:00:00 PM --> 43200
+       01:30:00 AM --> 5400
+       02:35:30 PM --> 9330
+     '''
+    df = input_df.copy()
+    from pandas.api.types import is_numeric_dtype
+    def time_fn(row):
+        b = row.split(' ')
+        if b[1] == 'AM':
+            c = 0
         else:
-            if x[-2:] == 'AM':
-                x = (float(x[0:2])*3600) + (float(x[3:5])*60) + float(x[6:8])
+            c = 12
+        b = b[0].split(':')
+        b = [int(i) for i in b]
+        if b[0] == 12:
+            c -= 12
+        # convertion to hours
+        b[0] = (b[0] + c)*3600
+        b[1] = (b[1])*60.0
+        b[2] = (b[2])
+        row = int(sum(b))
+        return(row)
+    time_columns = [
+                'Pla_Time',\
+                'Con_Time',\
+                'Arr_Pic_Time',\
+                'Pickup_Time',\
+               ]
+    for col in df.columns:
+        if col in time_columns:
+            if is_numeric_dtype(df[col]) is False:
+                df[col] = df[col].apply(lambda x: time_fn(x))
             else:
-                x = (float(x[0:2])*43200) + (float(x[3:5])*60) + float(x[6:8])
-        return x
-    
-    input_df_1['Pla_Time'] = input_df_1['Pla_Time'].apply(timetosecs)
-    input_df_1['Con_Time'] = input_df_1['Con_Time'].apply(timetosecs)
-    input_df_1['Arr_Pic_Time'] = input_df_1['Arr_Pic_Time'].apply(timetosecs)
-    input_df_1['Pickup_Time'] = input_df_1['Pickup_Time'].apply(timetosecs)
-    
-    return input_df_1
+                pass
+    return(df)
 
-# Implement time conversion function
+train = time_change(train)
 
-train = time_conv(train)
 
-# Function to add Columns for time differences
+# Add ride experience column
+train['Rider_Exp'] = pd.qcut(train['Age'],
+                                       q=[0, .25, .75, 1],
+                                       labels=['low', 'medium', 'high'])
+
+# Create Temperature band Column - 3 categories - low, mid, high
+train['Temp_Band'] = pd.qcut(train['Temperature'],
+                                       q=[0, .25, .75, 1],
+                                       labels=['low', 'medium', 'high'])
+
+# Time difference
 
 def time_diffs(input_df):
-    time_diffs_df = input_df.copy()
-    time_diffs_df['Conf_Pla_dif'] = time_diffs_df['Con_Time'
-                                                ] - time_diffs_df['Pla_Time']
-    time_diffs_df['Arr_Con_dif'] = time_diffs_df['Arr_Pic_Time'
-                                                 ] - time_diffs_df['Con_Time']
-    time_diffs_df['Pic_Arr_dif'] = time_diffs_df['Pickup_Time'
-                                            ] - time_diffs_df['Arr_Pic_Time']
-    
-    return time_diffs_df
+    df = input_df.copy()
+    df['Conf_Pla_dif'] = df['Con_Time'] - df['Pla_Time']
+    df['Arr_Con_dif'] = df['Arr_Pic_Time'] - df['Con_Time']
+    df['Pic_Arr_dif'] = df['Pickup_Time'] - df['Arr_Pic_Time']
+
+    return df
 
 train = time_diffs(train)
 
-''' Feature Engineering and Selection '''
 
+# Create manhattan dist
+def manhattan(input_df):
+    '''Calculates the manhattan distance between two location given
+       the longitude and latitude of the locations
+    '''
+    df = input_df.copy()
+    a = np.abs(df['Pickup_Lat'] - df['Destination_Lat'])
+    b = np.abs(df['Pickup_Lon'] - df['Destination_Lon'])
+    df['manhattan_dist'] = a + b
+    return (df)
 
-# Add Rider Experience based on Age Column - Low - Medium - High
+train = manhattan(train)
 
+# days where placement date != delivery date
+days_to_drop = train[(train['Pla_Mon']
+                             != train['Con_Day_Mon'])]
 
-
-train['Rider_Exp'] = pd.qcut(train['Age'], q=[0, .25, .75, 1],
-                                    labels=['low', 'medium', 'high'])
-
-# Filling Missing Values for Temperature and Precipitation - used the Mean
-
-
-train['Temperature'] = train['Temperature'].fillna(
-                                train['Temperature'].mean())
-
-
-train['Precipitation(mm)'].fillna(train[
-                         'Precipitation(mm)'].mean(), inplace=True)
-
-## Create Temperature band Column - 3 categories - low, mid, high
-
-train['Temp_Band'] = pd.qcut(train['Temperature'],
-                        q=[0, .25, .75, 1], labels=['low', 'medium', 'high'])
-
-
-# Manhattan distance function
-
-def manhattan_distance(lat1, lng1, lat2, lng2):
-    a = np.abs(lat2 -lat1)
-    b = np.abs(lng1 - lng2)
-    return a + b
-
-# Function to add Manhattan to DF
-
-def added_manhattan(input_df):
-    input_df_1 = input_df.copy()
-    input_df_1['distance_manhattan'
-               ] = manhattan_distance(input_df_1['Pickup_Lat'].values,
-                                      input_df_1['Pickup_Lon'].values,
-                                      input_df_1['Destination_Lat'].values,
-                                      input_df_1['Destination_Lon'].values)
-    return input_df_1
-
-
-# Implement manhatten distance function
-
-train = added_manhattan(train)
-
-# Haversine distance function
+# Haversine distance
 
 def haversine_array(lat1, lng1, lat2, lng2):
     lat1, lng1, lat2, lng2 = map(np.radians, (lat1, lng1, lat2, lng2))
     AVG_EARTH_RADIUS = 6371  # in km
     lat = lat2 - lat1
     lng = lng2 - lng1
-    d = np.sin(lat * 0.5) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(
-                                                       lng * 0.5) ** 2
+    d = np.sin(lat * 0.5) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(lng * 0.5) ** 2
     h = 2 * AVG_EARTH_RADIUS * np.arcsin(np.sqrt(d))
-    
     return h
-
-# Function to add haversine distance
-
 def add_haversine(input_df):
     input_df_1 = input_df.copy()
-    input_df_1['distance_haversine'
-               ] = haversine_array(input_df_1['Pickup_Lat'].values,
-                                  input_df_1['Pickup_Lon'].values,
-                                  input_df_1['Destination_Lat'].values,
-                                  input_df_1['Destination_Lon'].values)
-                                   
+    input_df_1['distance_haversine'] = haversine_array(input_df_1['Pickup_Lat'].values,
+                                                       input_df_1['Pickup_Lon'].values,
+                                                       input_df_1['Destination_Lat'].values,
+                                                       input_df_1['Destination_Lon'].values)
     return input_df_1
 
-# Implementing harvisine distance function
 
 train = add_haversine(train)
 
-# This is to check if there is any difference between
-# the columns with Days of Month or Weekday of Month
+# Encode Rider Exp,Temp_Band and Personal/Business
+def encode(input_df):
+    df = input_df.copy()
+    to_encode = ['Rider_Exp',
+                 'Personal_Business',
+                 'Temp_Band']
+    df = pd.get_dummies(train,columns = to_encode,drop_first = True)
+    return(df)
 
-month_cols = [col for col in train.columns if col.endswith('Mon')]
-weekday_cols = [col for col in train.columns if col.endswith('Weekday')]
+train = encode(train)
 
-count = 0
-instances_of_different_days = [];
-for i, row in train.iterrows():
-    if len(set(row[month_cols].values)) > 1:
-        # print(count+1, end='\r')
-        count = count + 1
-        instances_of_different_days.append(list(row[month_cols].values))
-        
-               
-# Drop columns based on:
-# Days of Month or Weekday of Month are the same except for 2 rows.
-# The delivery service is same day
-# All Vehicle types are Bikes, Vehicle Type is not necessary.
-
-train['Day_of_Month'] = train[month_cols[0]]
-train['Day_of_Week'] = train[weekday_cols[0]]
-
-train.drop(month_cols+weekday_cols, axis=1, inplace=True)
-train.drop('Vehicle_Type', axis=1, inplace=True)
-
-#Convert Personal_Business Temp_Band using LabelEncoding
-
-le = LabelEncoder()
-le.fit(train['Personal_Business'])
-train['Personal_Business'] = le.transform(
-                                train['Personal_Business'])
-
-# train['Personal_Business'][:2]
-
-# Rider_Exp convert Label Encoding
-
-le.fit(train['Rider_Exp'])
-train['Rider_Exp'] = le.transform(train['Rider_Exp'])
-# time_conv_df['Rider_Exp'][:2]
-
-# Convert Temp_Band using LabelEncoding
-
-le.fit(train['Temp_Band'])
-train['Temp_Band'] = le.transform(train['Temp_Band'])
-# time_conv_df['Temp_Band'][:2]
-
-# This function splits Columns into Data types
-# this makes it easier to select & plot numeric features
-# against the Target Variable
-
+# Extract feature columns
 numeric_cols = []
 object_cols = []
 time_cols = []
@@ -266,59 +236,40 @@ for k, v in train.dtypes.items():
         time_cols.append(k)
     else:
         object_cols.append(k)
-        
 
-## Feature Selection & Dropping of the Target Variable
-
-features = numeric_cols 
-
-data_df = train[features]
-train_end = 21201
-y = train[:train_end]['Time_Pic_Arr']
-train = data_df[:train_end]             # Train and Test are redifined
-test = data_df[train_end:]
-
-''' 
-    Note that here we will skip Cross-Validation and Grid search steps
-    to increase the time response of the training
-    
-    These steps can be found in the notebook
-    
-'''
-
-'''
-    Regression Implementation 
-'''
-
-## Splitting the Data into Train & Test sets
+print(len(numeric_cols))
+# data_df = data_encoded_df[numeric_cols]
+y = train[:len(train_df)]['Time_Pic_Arr']
+X = train[numeric_cols][:len(train_df)]
+test = train[numeric_cols][len(train_df):]
 
 rs = 42
 
-X_train, X_test, y_train, y_test = train_test_split(train, y, test_size=0.2,
-                                            shuffle=True,random_state = rs)              # No random state
+# Split data into training and validation sets
+X_train, X_test, y_train, y_test = train_test_split(X, y,
+                                                    test_size=0.2,
+                                                    shuffle=True,
+                                                    random_state = rs)
 
-# Training the model on best paramters
 
 lgb_train = lgb.Dataset(X_train, y_train)
 lgb_eval = lgb.Dataset(X_test, y_test, reference=lgb_train)
 
- 
-lparams = {'learning_rate': 0.1, 'min_data_in_leaf': 300, 
+lparams = {
+           'learning_rate': 0.1, 'min_data_in_leaf': 300, 
            'n_estimators': 75, 'num_leaves': 20, 'random_state':rs,
            'objective': 'regression', 'reg_alpha': 0.02,
           'feature_fraction': 0.9, 'bagging_fraction':0.9}
 
 
-print ("Training Model...")
-# lm_regression.fit(X_train, y_train)
-
 lgbm = lgb.train(lparams, lgb_train, valid_sets=lgb_eval, num_boost_round=20,
-                 early_stopping_rounds=20 )
+                 early_stopping_rounds=20)
+
+
 
 # Pickle model for use within our API
 
 save_path = 'assets/trained-models/sendy_simple_lm_regression.pkl'
 print (f"Training completed. Saving model to: {save_path}")
 pickle.dump(lgbm, open(save_path,'wb'))
-
 
