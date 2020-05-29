@@ -55,105 +55,136 @@ feature_names = {"Order No": "Order_No", "User Id": "User_Id",
                "Time from Pickup to Arrival": "Time_Pic_Arr"}
 
 
-# Function to convert time to seconds after midnight 
+def Impute(input_df):
+    '''Function fills missing values on the Temperature and
+       Precipitation columns, all missing temperatures are
+       imputed with the average temperature while all
+       Precipitation columns are filled with 0mm of rain
+    '''
+    df = input_df.copy()
+    cols_to_impute = ['Temperature',
+                      'Precipitation(mm)']
+    for col in cols_to_impute:
+        if col == 'Temperature':
+            a = round(df[col].mean(),1)
+        if col == 'Precipitation(mm)':
+            a = round(df[col].mean(),1)
+        df[col] = df[col].fillna(a) 
+    return (df)
 
-def time_conv(input_df):
-    input_df_1 = input_df.copy()
-    def timetosecs(x):
-        if len(x) == 10:
-            if x[-2:] == 'AM':
-                x = (float(x[0])*3600) + (float(x[2:4])*60) + float(x[5:7])
-            else:
-                x = (float(x[0])*43200) + (float(x[2:4])*60) + float(x[5:7])
+
+def time_change(input_df):
+    '''Converts time format %H:%M:%S to seconds past midnight(00:00) of
+       the same day rounded to the nearest second.
+       ------------------------------
+       12:00:00 PM --> 43200
+       01:30:00 AM --> 5400
+       02:35:30 PM --> 9330
+     '''
+    df = input_df.copy()
+    from pandas.api.types import is_numeric_dtype
+    def time_fn(row):
+        b = row.split(' ')
+        if b[1] == 'AM':
+            c = 0
         else:
-            if x[-2:] == 'AM':
-                x = (float(x[0:2])*3600) + (float(x[3:5])*60) + float(x[6:8])
+            c = 12
+        b = b[0].split(':')
+        b = [int(i) for i in b]
+        if b[0] == 12:
+            c -= 12
+        # convertion to hours
+        b[0] = (b[0] + c)*3600
+        b[1] = (b[1])*60.0
+        b[2] = (b[2])
+        row = int(sum(b))
+        return(row)
+    time_columns = [
+                'Pla_Time',\
+                'Con_Time',\
+                'Arr_Pic_Time',\
+                'Pickup_Time',\
+               ]
+    for col in df.columns:
+        if col in time_columns:
+            if is_numeric_dtype(df[col]) is False:
+                df[col] = df[col].apply(lambda x: time_fn(x))
             else:
-                x = (float(x[0:2])*43200) + (float(x[3:5])*60) + float(x[6:8])
-        return x
-    
-    input_df_1['Pla_Time'] = input_df_1['Pla_Time'].apply(timetosecs)
-    input_df_1['Con_Time'] = input_df_1['Con_Time'].apply(timetosecs)
-    input_df_1['Arr_Pic_Time'] = input_df_1['Arr_Pic_Time'].apply(timetosecs)
-    input_df_1['Pickup_Time'] = input_df_1['Pickup_Time'].apply(timetosecs)
-    
-    return input_df_1
-
-# Function to add Columns for time differences
+                pass
+    return(df)
 
 def time_diffs(input_df):
-    time_diffs_df = input_df.copy()
-    time_diffs_df['Conf_Pla_dif'] = time_diffs_df['Con_Time'
-                                                ] - time_diffs_df['Pla_Time']
-    time_diffs_df['Arr_Con_dif'] = time_diffs_df['Arr_Pic_Time'
-                                                 ] - time_diffs_df['Con_Time']
-    time_diffs_df['Pic_Arr_dif'] = time_diffs_df['Pickup_Time'
-                                            ] - time_diffs_df['Arr_Pic_Time']
-    
-    return time_diffs_df
+    df = input_df.copy()
+    df['Conf_Pla_dif'] = df['Con_Time'] - df['Pla_Time']
+    df['Arr_Con_dif'] = df['Arr_Pic_Time'] - df['Con_Time']
+    df['Pic_Arr_dif'] = df['Pickup_Time'] - df['Arr_Pic_Time']
 
-# Manhattan distance function
+    return df
 
-def manhattan_distance(lat1, lng1, lat2, lng2):
-    a = np.abs(lat2 -lat1)
-    b = np.abs(lng1 - lng2)
-    return a + b
-
-# Function to add Manhattan to DF
-
-def added_manhattan(input_df):
-    input_df_1 = input_df.copy()
-    input_df_1['distance_manhattan'
-               ] = manhattan_distance(input_df_1['Pickup_Lat'].values,
-                                      input_df_1['Pickup_Lon'].values,
-                                      input_df_1['Destination_Lat'].values,
-                                      input_df_1['Destination_Lon'].values)
-    return input_df_1
-
-
-# Haversine distance function
+# Create manhattan dist
+def manhattan(input_df):
+    '''Calculates the manhattan distance between two location given
+       the longitude and latitude of the locations
+    '''
+    df = input_df.copy()
+    a = np.abs(df['Pickup_Lat'] - df['Destination_Lat'])
+    b = np.abs(df['Pickup_Lon'] - df['Destination_Lon'])
+    df['manhattan_dist'] = a + b
+    return (df)
 
 def haversine_array(lat1, lng1, lat2, lng2):
     lat1, lng1, lat2, lng2 = map(np.radians, (lat1, lng1, lat2, lng2))
     AVG_EARTH_RADIUS = 6371  # in km
     lat = lat2 - lat1
     lng = lng2 - lng1
-    d = np.sin(lat * 0.5) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(
-                                                       lng * 0.5) ** 2
+    d = np.sin(lat * 0.5) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(lng * 0.5) ** 2
     h = 2 * AVG_EARTH_RADIUS * np.arcsin(np.sqrt(d))
-    
     return h
-
-# Function to add haversine distance
-
 def add_haversine(input_df):
     input_df_1 = input_df.copy()
-    input_df_1['distance_haversine'
-               ] = haversine_array(input_df_1['Pickup_Lat'].values,
-                                  input_df_1['Pickup_Lon'].values,
-                                  input_df_1['Destination_Lat'].values,
-                                  input_df_1['Destination_Lon'].values)
-                                   
+    input_df_1['distance_haversine'] = haversine_array(input_df_1['Pickup_Lat'].values,
+                                                       input_df_1['Pickup_Lon'].values,
+                                                       input_df_1['Destination_Lat'].values,
+                                                       input_df_1['Destination_Lon'].values)
     return input_df_1
 
 
-# Import train for easy pre-processing
+order_to_train =['Platform_Type',
+                 'Pla_Mon',
+                 'Pla_Weekday',
+                 'Pla_Time',
+                 'Con_Day_Mon',
+                 'Con_Weekday',
+                 'Con_Time',
+                 'Arr_Pic_Mon',
+                 'Arr_Pic_Weekday',
+                 'Arr_Pic_Time',
+                 'Pickup_Mon',
+                 'Pickup_Weekday',
+                 'Pickup_Time',
+                 'Distance(km)',
+                 'Temperature',
+                 'Precipitation(mm)',
+                 'Pickup_Lat',
+                 'Pickup_Lon',
+                 'Destination_Lat',
+                 'Destination_Lon',
+                 'No_Of_Orders',
+                 'Age',
+                 'Average_Rating',
+                 'No_of_Ratings',
+                 'Conf_Pla_dif',
+                 'Arr_Con_dif',
+                 'Pic_Arr_dif',
+                 'manhattan_dist',
+                 'distance_haversine',
+                 'Rider_Exp_medium',
+                 'Rider_Exp_high',
+                 'Personal_Business_Personal',
+                 'Temp_Band_medium',
+                 'Temp_Band_high']
 
-train = pd.read_csv('utils/data/Train_Zindi.csv')
 
-# Define order to facilitate merge
-
-order = ['Order No', 'User Id', 'Vehicle Type', 'Platform Type',
-       'Personal or Business', 'Placement - Day of Month',
-       'Placement - Weekday (Mo = 1)', 'Placement - Time',
-       'Confirmation - Day of Month', 'Confirmation - Weekday (Mo = 1)',
-       'Confirmation - Time', 'Arrival at Pickup - Day of Month',
-       'Arrival at Pickup - Weekday (Mo = 1)', 'Arrival at Pickup - Time',
-       'Pickup - Day of Month', 'Pickup - Weekday (Mo = 1)', 'Pickup - Time',
-       'Distance (KM)', 'Temperature', 'Precipitation in millimeters',
-       'Pickup Lat', 'Pickup Long', 'Destination Lat', 'Destination Long',
-       'Rider Id', 'Time from Pickup to Arrival', 'No_Of_Orders', 'Age',
-       'Average_Rating', 'No_of_Ratings']
 
 
 # ---------------------------------------------------------------------------#
@@ -196,7 +227,6 @@ def _preprocess_data(data):
     feature_vector_df['Time from Pickup to Arrival'] = [np.nan
                                             ]*feature_vector_df.shape[0]
 
-    feature_vector_df = feature_vector_df[order]
     
     predict_vector = feature_vector_df.copy()
     
@@ -206,13 +236,11 @@ def _preprocess_data(data):
     
     predict_vector = predict_vector.rename(columns=feature_names)
     
-    # Implement time conversion function
-    
-    predict_vector = time_conv(predict_vector)
-    
+    predict_vector = Impute(predict_vector)
+
     # Implement time diff function
     
-    predict_vector = time_diffs(predict_vector)
+    predict_vector = time_change(predict_vector)
     
     # Add Rider Experience based on Age Column - Low - Medium - High
     
@@ -232,12 +260,12 @@ def _preprocess_data(data):
     
     
     predict_vector['Temperature'] = predict_vector['Temperature'].fillna(
-                                                       23.255688596099763)
+                                                       23.3)
     
     
     predict_vector['Precipitation(mm)'] = predict_vector[
                                  'Precipitation(mm)'].fillna(
-                                                          7.573501997336319)
+                                                          7.6)
     
     ## Create Temperature band Column - 3 categories - low, mid, high
     
@@ -252,54 +280,64 @@ def _preprocess_data(data):
     
     predict_vector['Temp_Band'] = temp
     
-    # Adding manhatten distance
+    # Encoding Personal_Business Manually
+    le = LabelEncoder()
     
-    predict_vector= added_manhattan(predict_vector)
+    if str(predict_vector['Personal_Business']) == 'personal' :
+           predict_vector['Personal_Business_Personal'] = [1]
+    else :
+           predict_vector['Personal_Business_Personal'] = [0]
+           
+           
+    predict_vector = predict_vector.drop(['Personal_Business'], axis=1)
     
-    # Implementing harvisine distance function
+    
+           
+    # Rider_Exp Label Encoding
+    
+    if str(predict_vector['Rider_Exp']) == 'low' :
+        predict_vector['Rider_Exp_medium'] = [0]
+        predict_vector['Rider_Exp_high'] = [0]
+        
+    
+    elif str(predict_vector['Rider_Exp']) == 'medium' :
+        predict_vector['Rider_Exp_medium'] = [1]
+        predict_vector['Rider_Exp_high'] = [0]
+        
+    else :
+        predict_vector['Rider_Exp_medium'] = [0]
+        predict_vector['Rider_Exp_high'] = [1]
+        
+    predict_vector = predict_vector.drop(['Rider_Exp'], axis=1)    
+    
+    # Temp_Band Label Encoding
+    
+    if str(predict_vector['Temp_Band']) == 'low' :
+        predict_vector['Temp_Band_medium'] = [0]
+        predict_vector['Temp_Band_high'] = [0]
+        
+    
+    elif str(predict_vector['Temp_Band']) == 'medium' :
+        predict_vector['Temp_Band_medium'] = [1]
+        predict_vector['Temp_Band_high'] = [0]
+        
+    else :
+        predict_vector['Temp_Band_medium'] = [0]
+        predict_vector['Temp_Band_high'] = [1]
+        
+    predict_vector = predict_vector.drop(['Temp_Band'], axis=1)
+    
+    # Various distance function implementation
+    
+    predict_vector = time_diffs(predict_vector)
+    
+    predict_vector = manhattan(predict_vector)
     
     predict_vector = add_haversine(predict_vector)
     
-    # This is to check if there is any difference between
-    # the columns with Days of Month or Weekday of Month
+    # Encode Rider Exp,Temp_Band and Personal/Business
     
-    month_cols = [col for col in predict_vector.columns if col.endswith('Mon')]
-    weekday_cols = [col for col in predict_vector.columns if col.endswith('Weekday')]
-    
-    count = 0
-    instances_of_different_days = [];
-    for i, row in predict_vector.iterrows():
-        if len(set(row[month_cols].values)) > 1:
-            # print(count+1, end='\r')
-            count = count + 1
-            instances_of_different_days.append(list(row[month_cols].values))
-    
-    
-    predict_vector['Day_of_Month'] = predict_vector[month_cols[0]]
-    predict_vector['Day_of_Week'] = predict_vector[weekday_cols[0]]
-    
-    predict_vector.drop(month_cols+weekday_cols, axis=1, inplace=True)
-    predict_vector.drop('Vehicle_Type', axis=1, inplace=True)
-    
-    #Convert Personal_Business Temp_Band using LabelEncoding
-    
-    le = LabelEncoder()
-    le.fit(predict_vector['Personal_Business'])
-    predict_vector['Personal_Business'] = le.transform(
-                                    predict_vector['Personal_Business'])
-    
-    
-    # Rider_Exp convert Label Encoding
-    
-    le.fit(predict_vector['Rider_Exp'])
-    predict_vector['Rider_Exp'] = le.transform(predict_vector['Rider_Exp'])
-    
-    
-    # Convert Temp_Band using LabelEncoding
-    
-    le.fit(predict_vector['Temp_Band'])
-    predict_vector['Temp_Band'] = le.transform(predict_vector['Temp_Band'])
-    
+    # Extract feature columns
     numeric_cols = []
     object_cols = []
     time_cols = []
@@ -311,11 +349,10 @@ def _preprocess_data(data):
             time_cols.append(k)
         else:
             object_cols.append(k)
-    
-    
-    features = numeric_cols 
-    
-    predict_vector = predict_vector[features]
+            
+            
+    predict_vector = predict_vector[numeric_cols]
+    predict_vector = predict_vector[order_to_train]
     
     # ------------------------------------------------------------------------
 
