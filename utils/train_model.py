@@ -269,7 +269,7 @@ lgbm = lgb.train(lparams, lgb_train, valid_sets=lgb_eval, num_boost_round=20,
 
 # Pickle model for use within our API
 
-save_path = 'assets/trained-models/sendy_simple_lm_regression.pkl'
+save_path = 'assets/trained-models/pickle_model.pkl'
 print (f"Training completed. Saving model to: {save_path}")
 pickle.dump(lgbm, open(save_path,'wb'))
 
