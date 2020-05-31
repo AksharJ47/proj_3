@@ -1,7 +1,7 @@
 """
     Simple file to create a Sklearn model for deployment in our API
 
-    Author: Explore Data Science Academy
+    Author: Team_2_DBN
 
     Description: This script is responsible for training a simple linear
     regression model which is used within the API for initial demonstration
@@ -19,22 +19,8 @@
 import pickle
 import pandas as pd
 import numpy as np
-import datetime as dt
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split, KFold, GridSearchCV 
-from sklearn.model_selection import cross_val_score, learning_curve
-from sklearn.metrics import mean_squared_error
-from sklearn.svm import SVR
-from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor, GradientBoostingRegressor
-from sklearn.linear_model import LinearRegression
-
+from sklearn.model_selection import train_test_split 
 import lightgbm as lgb
-
-
-
-''' Data cleaning and formating '''
 
 # Fetch training data and preprocess for modeling
 train = pd.read_csv('data/Train_Zindi.csv')
@@ -188,10 +174,6 @@ def manhattan(input_df):
 
 train = manhattan(train)
 
-# days where placement date != delivery date
-days_to_drop = train[(train['Pla_Mon']
-                             != train['Con_Day_Mon'])]
-
 # Haversine distance
 
 def haversine_array(lat1, lng1, lat2, lng2):
@@ -199,30 +181,38 @@ def haversine_array(lat1, lng1, lat2, lng2):
     AVG_EARTH_RADIUS = 6371  # in km
     lat = lat2 - lat1
     lng = lng2 - lng1
-    d = np.sin(lat * 0.5) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(lng * 0.5) ** 2
+    d = np.sin(lat * 0.5) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(
+                                                           lng * 0.5) ** 2
     h = 2 * AVG_EARTH_RADIUS * np.arcsin(np.sqrt(d))
     return h
 def add_haversine(input_df):
     input_df_1 = input_df.copy()
-    input_df_1['distance_haversine'] = haversine_array(input_df_1['Pickup_Lat'].values,
-                                                       input_df_1['Pickup_Lon'].values,
-                                                       input_df_1['Destination_Lat'].values,
-                                                       input_df_1['Destination_Lon'].values)
+    input_df_1['distance_haversine'] = haversine_array(
+                                    input_df_1['Pickup_Lat'].values,
+                                    input_df_1['Pickup_Lon'].values,
+                                    input_df_1['Destination_Lat'].values,
+                                    input_df_1['Destination_Lon'].values)
     return input_df_1
 
 
 train = add_haversine(train)
 
-# Encode Rider Exp,Temp_Band and Personal/Business
-def encode(input_df):
+# Encode Rider Exp,Temp_Band and Personal/Business and Normalise all features
+def encode_normalize(input_df):
+    from pandas.api.types import is_numeric_dtype
     df = input_df.copy()
     to_encode = ['Rider_Exp',
                  'Personal_Business',
                  'Temp_Band']
-    df = pd.get_dummies(train,columns = to_encode,drop_first = True)
+    for col in (df.drop(to_encode, axis=1).columns):
+        if is_numeric_dtype(df[col]) and col not in to_encode and col != "Time_Pic_Arr":
+            from sklearn.preprocessing import StandardScaler
+            scaler = StandardScaler()
+            df[[col]] = scaler.fit_transform(df[[col]])             
+    df = pd.get_dummies(df, columns=to_encode, drop_first=True)
     return(df)
 
-train = encode(train)
+train = encode_normalize(train)
 
 # Extract feature columns
 numeric_cols = []
@@ -237,11 +227,13 @@ for k, v in train.dtypes.items():
     else:
         object_cols.append(k)
 
-print(len(numeric_cols))
+
 # data_df = data_encoded_df[numeric_cols]
 y = train[:len(train_df)]['Time_Pic_Arr']
 X = train[numeric_cols][:len(train_df)]
 test = train[numeric_cols][len(train_df):]
+
+# Setting a Random State
 
 rs = 42
 
@@ -254,6 +246,8 @@ X_train, X_test, y_train, y_test = train_test_split(X, y,
 
 lgb_train = lgb.Dataset(X_train, y_train)
 lgb_eval = lgb.Dataset(X_test, y_test, reference=lgb_train)
+
+# Training model on optimal parameters
 
 lparams = {
            'learning_rate': 0.1, 'min_data_in_leaf': 300, 
@@ -272,4 +266,6 @@ lgbm = lgb.train(lparams, lgb_train, valid_sets=lgb_eval, num_boost_round=20,
 save_path = 'assets/trained-models/pickle_model.pkl'
 print (f"Training completed. Saving model to: {save_path}")
 pickle.dump(lgbm, open(save_path,'wb'))
+
+
 
