@@ -1,12 +1,8 @@
 """
-    Simple Script to test the API once deployed
-    Author: Explore Data Science Academy.
-    Note:
-    ---------------------------------------------------------------------
-    Plase follow the instructions provided within the README.md file
-    located at the root of this repo for guidance on how to use this
-    script correctly.
-    ----------------------------------------------------------------------
+    Script to test the API once deployed
+    
+    Author: Team_2_DBN
+
     Description: This file contains code used to formulate a POST request
     which can be used to develop/debug the Model API once it has been
     deployed.
