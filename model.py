@@ -2,18 +2,7 @@
 
     Helper functions for the pretrained model to be used within our API.
 
-    Author: Explore Data Science Academy.
-
-    Note:
-    ---------------------------------------------------------------------
-    Plase follow the instructions provided within the README.md file
-    located within this directory for guidance on how to use this script
-    correctly.
-
-    Importantly, you will need to modify this file by adding
-    your own data preprocessing steps within the `_preprocess_data()`
-    function.
-    ----------------------------------------------------------------------
+    Author: Team_2_DBN
 
     Description: This file contains several functions used to abstract aspects
     of model interaction within the API. This includes loading a model from
@@ -22,12 +11,14 @@
 """
 
 # Helper Dependencies
+
 import numpy as np
 import pandas as pd
 import pickle
 import json
-from dateutil.parser import parse
-from sklearn.preprocessing import LabelEncoder
+
+                   # Define Functions and Pre-Variables #
+#----------------------------------------------------------------------------#
 
 
 feature_names = {"Order No": "Order_No", "User Id": "User_Id",
@@ -121,7 +112,7 @@ def time_diffs(input_df):
 
     return df
 
-# Create manhattan dist
+# Initialise manhattan and harvestine distance functions
 def manhattan(input_df):
     '''Calculates the manhattan distance between two location given
        the longitude and latitude of the locations
@@ -137,64 +128,85 @@ def haversine_array(lat1, lng1, lat2, lng2):
     AVG_EARTH_RADIUS = 6371  # in km
     lat = lat2 - lat1
     lng = lng2 - lng1
-    d = np.sin(lat * 0.5) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(lng * 0.5) ** 2
+    d = np.sin(lat * 0.5) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(
+                                                           lng * 0.5) ** 2
     h = 2 * AVG_EARTH_RADIUS * np.arcsin(np.sqrt(d))
     return h
 def add_haversine(input_df):
     input_df_1 = input_df.copy()
-    input_df_1['distance_haversine'] = haversine_array(input_df_1['Pickup_Lat'].values,
-                                                       input_df_1['Pickup_Lon'].values,
-                                                       input_df_1['Destination_Lat'].values,
-                                                       input_df_1['Destination_Lon'].values)
+    input_df_1['distance_haversine'] = haversine_array(
+                                    input_df_1['Pickup_Lat'].values,
+                                    input_df_1['Pickup_Lon'].values,
+                                    input_df_1['Destination_Lat'].values,
+                                    input_df_1['Destination_Lon'].values)
     return input_df_1
 
 
-order_to_train =['Platform_Type',
-                 'Pla_Mon',
-                 'Pla_Weekday',
-                 'Pla_Time',
-                 'Con_Day_Mon',
-                 'Con_Weekday',
-                 'Con_Time',
-                 'Arr_Pic_Mon',
-                 'Arr_Pic_Weekday',
-                 'Arr_Pic_Time',
-                 'Pickup_Mon',
-                 'Pickup_Weekday',
-                 'Pickup_Time',
-                 'Distance(km)',
-                 'Temperature',
-                 'Precipitation(mm)',
-                 'Pickup_Lat',
-                 'Pickup_Lon',
-                 'Destination_Lat',
-                 'Destination_Lon',
-                 'No_Of_Orders',
-                 'Age',
-                 'Average_Rating',
-                 'No_of_Ratings',
-                 'Conf_Pla_dif',
-                 'Arr_Con_dif',
-                 'Pic_Arr_dif',
-                 'manhattan_dist',
-                 'distance_haversine',
-                 'Rider_Exp_medium',
+# Means and standard deviations from the train model
+
+all_means = [2.752166684353886,15.64572499911564,3.2425271498814956,
+ 46154.573348898084,15.64583112243093,3.242633273196788,46587.434327355055,
+ 15.64583112243093,3.242633273196788,47363.57218154162,15.64583112243093,
+ 3.242633273196788,48105.533764901484,9.494640772577736,23.264784746542695,
+ 7.59929604867886,-1.281612954474242,36.811234622548646,-1.282499366006403,
+ 36.81124658238537,1698.5764972231066,988.1575223743323,13.882684212387913,
+ 341.50433336870776,432.860978456967,776.1378541865648,741.9615833598641,
+ 0.07577655682054531,6.5013419383858615]
+
+all_div = [0.6248613639605949,8.793054172821035,1.5706642653367442,
+ 9092.290757545776,8.793032298409637,1.5706140914489066,9139.406122423406,
+ 8.793032298409637,1.5706140914489066,9147.728274748304,8.793032298409637,
+ 1.5706140914489066,9131.203272866513,5.645625918499536,3.2177822565844743,
+ 2.6628078574663543,0.030391961677135808,0.037594172251936626,
+ 0.03467664596166568,0.04441882596779921,1588.0975556929823,653.1359271802588,
+ 0.8991113468976473,404.66534845905056,1021.5648462028947,687.1247503216505,
+ 757.2744414381377,0.05346380062224861,4.433305188886529]
+
+words = ['Platform_Type','Pla_Mon','Pla_Weekday','Pla_Time','Con_Day_Mon',
+ 'Con_Weekday','Con_Time','Arr_Pic_Mon','Arr_Pic_Weekday','Arr_Pic_Time',
+ 'Pickup_Mon','Pickup_Weekday','Pickup_Time','Distance(km)','Temperature',
+ 'Precipitation(mm)','Pickup_Lat','Pickup_Lon','Destination_Lat',
+ 'Destination_Lon','No_Of_Orders','Age','Average_Rating','No_of_Ratings',
+ 'Conf_Pla_dif','Arr_Con_dif','Pic_Arr_dif','manhattan_dist',
+ 'distance_haversine']
+
+mean_dict = dict(zip(words, all_means))
+div_dict = dict(zip(words,all_div))
+
+
+# Encoding and Normalizing function
+
+def encode_normalize(input_df):
+    from pandas.api.types import is_numeric_dtype
+    df = input_df.copy()
+    to_encode = ['Rider_Exp_medium',
                  'Rider_Exp_high',
                  'Personal_Business_Personal',
                  'Temp_Band_medium',
                  'Temp_Band_high']
+    for col in (df.drop(to_encode, axis=1).columns):
+        if is_numeric_dtype(df[col]) and col not in to_encode and col != "Time_Pic_Arr":
+            df[[col]] = (df[[col]] - mean_dict[col])/div_dict[col]
+    return(df)
+
+# Order confirmation prior training predict_vector
+order_to_train =['Platform_Type','Pla_Mon','Pla_Weekday','Pla_Time',
+            'Con_Day_Mon','Con_Weekday','Con_Time','Arr_Pic_Mon',
+            'Arr_Pic_Weekday','Arr_Pic_Time','Pickup_Mon','Pickup_Weekday',
+            'Pickup_Time','Distance(km)','Temperature','Precipitation(mm)',
+            'Pickup_Lat','Pickup_Lon','Destination_Lat','Destination_Lon',
+            'No_Of_Orders','Age','Average_Rating','No_of_Ratings',
+            'Conf_Pla_dif','Arr_Con_dif','Pic_Arr_dif','manhattan_dist',
+            'distance_haversine','Rider_Exp_medium','Rider_Exp_high',
+            'Personal_Business_Personal','Temp_Band_medium',
+            'Temp_Band_high']
 
 
-
-
+                      # Pre-Processing Implementation #
 # ---------------------------------------------------------------------------#
 
 def _preprocess_data(data):
     """Private helper function to preprocess data for model prediction.
-
-    NB: If you have utilised feature engineering/selection in order to create
-    your final model you will need to define the code here.
-
 
     Parameters
     ----------
@@ -212,25 +224,10 @@ def _preprocess_data(data):
     # Load the dictionary as a Pandas DataFrame.
     feature_vector_df = pd.DataFrame.from_dict([feature_vector_dict])
 
-    # ---------------------------------------------------------------
-    # NOTE: You will need to swap the lines below for your own data
-    # preprocessing methods.
-    #
-    # The code below is for demonstration purposes only. You will not
-    # receive marks for submitting this code in an unchanged state.
-    # ---------------------------------------------------------------
 
-    # ----------- Replace this code with your own preprocessing steps --------
-    
-    # Add Target in the test dataset ( already merged with riders )
-    
-    feature_vector_df['Time from Pickup to Arrival'] = [np.nan
-                                            ]*feature_vector_df.shape[0]
-
-    
+    # --------------------------- Preprocessing  --------------------------- #
+        
     predict_vector = feature_vector_df.copy()
-    
-    # Concatinate train and test(which already has rider information)
     
     # Rename columns
     
@@ -252,6 +249,7 @@ def _preprocess_data(data):
             exp.append('medium')
         else :
             exp.append('high')
+            
             
     
     predict_vector['Rider_Exp'] = exp        
@@ -281,19 +279,15 @@ def _preprocess_data(data):
     predict_vector['Temp_Band'] = temp
     
     # Encoding Personal_Business Manually
-    le = LabelEncoder()
     
     if str(predict_vector['Personal_Business']) == 'personal' :
            predict_vector['Personal_Business_Personal'] = [1]
     else :
            predict_vector['Personal_Business_Personal'] = [0]
-           
-           
+                 
     predict_vector = predict_vector.drop(['Personal_Business'], axis=1)
-    
-    
-           
-    # Rider_Exp Label Encoding
+             
+    # Rider_Exp Label Encoding manually
     
     if str(predict_vector['Rider_Exp']) == 'low' :
         predict_vector['Rider_Exp_medium'] = [0]
@@ -310,7 +304,7 @@ def _preprocess_data(data):
         
     predict_vector = predict_vector.drop(['Rider_Exp'], axis=1)    
     
-    # Temp_Band Label Encoding
+    # Temp_Band Label Encoding manually
     
     if str(predict_vector['Temp_Band']) == 'low' :
         predict_vector['Temp_Band_medium'] = [0]
@@ -335,8 +329,10 @@ def _preprocess_data(data):
     
     predict_vector = add_haversine(predict_vector)
     
-    # Encode Rider Exp,Temp_Band and Personal/Business
+    # Feature Scaling
     
+    predict_vector = encode_normalize(predict_vector)
+        
     # Extract feature columns
     numeric_cols = []
     object_cols = []
@@ -349,14 +345,14 @@ def _preprocess_data(data):
             time_cols.append(k)
         else:
             object_cols.append(k)
-            
-            
+                        
     predict_vector = predict_vector[numeric_cols]
     predict_vector = predict_vector[order_to_train]
     
-    # ------------------------------------------------------------------------
-
     return predict_vector
+
+
+#----------------------------------------------------------------------------#
 
 def load_model(path_to_model : str):
     """Adapter function to load our pretrained model into memory.
