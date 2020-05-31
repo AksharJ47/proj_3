@@ -2,14 +2,7 @@
 
     Simple Flask-based API for Serving an Sklearn Model.
 
-    Author: Explore Data Science Academy.
-
-    Note:
-    ---------------------------------------------------------------------
-    Plase follow the instructions provided within the README.md file
-    located within this directory for guidance on how to use this script
-    correctly.
-    ---------------------------------------------------------------------
+    Author: Team_2_DBN
 
     Description: This file instantiates a Flask webserver
     as a means to create a simple API used to deploy models trained within
