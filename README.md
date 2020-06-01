@@ -1,5 +1,9 @@
-# Flask-based Model API
+# Flask-based Model API - TEAM_2_DBN_The_Avengers
 #### EXPLORE Data Science Academy Regression Predict
+
+#### Zindi Sendy Logistic Challenge Leaderboard ( 4th Place )
+
+https://zindi.africa/hackathons/edsa-sendy-logistics-challenge/team
 
 ### Table of Contents
 
