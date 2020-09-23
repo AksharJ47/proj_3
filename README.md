@@ -1,14 +1,9 @@
-# Flask-based Model API - TEAM_2_DBN_The_Avengers
-#### EXPLORE Data Science Academy Regression Predict
-
-#### Zindi Sendy Logistic Challenge Leaderboard ( 4th Place )
-
-https://zindi.africa/hackathons/edsa-sendy-logistics-challenge/team
+#### 
 
 ### Table of Contents
 
 - [Flask-based Model API](#flask-based-model-api)
-      - [EXPLORE Data Science Academy Regression Predict](#explore-data-science-academy-regression-predict)
+      - 
   * [1) Overview](#1-overview)
       - [1.1) Wait, what is an API again?](#11-wait-what-is-an-api-again)
       - [1.2) How our API will work](#12-how-our-api-will-work)
@@ -24,7 +19,7 @@ https://zindi.africa/hackathons/edsa-sendy-logistics-challenge/team
 
 ## 1) Overview
 
-This repository forms the basis of *Task 2* for the **Regression Predict** within EDSA's Data Science course. It hosts template code which will enable students to deploy their own developed models through a web server-based API.   
+This repository forms the basis of *Task 2* for the  It hosts template code which will enable students to deploy their own developed models through a web server-based API.   
 
 #### 1.1) Wait, what is an API again?
 
@@ -262,6 +257,3 @@ If you are able to see these messages on both the Host and Client, then your API
 
 This section of the repo will be periodically updated to represent common questions which may arise around its use. If you detect any problems/bugs, please [create an issue](https://help.github.com/en/github/managing-your-work-on-github/creating-an-issue) and we will do our best to resolve it as quickly as possible.
 
-We wish you all the best in your learning experience :rocket:
-
-![Explore Data Science Academy](assets/imgs/EDSA_logo.png)
